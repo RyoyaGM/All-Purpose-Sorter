@@ -111,8 +111,8 @@
              const itemEl = document.createElement('div');
              itemEl.className = 'ranked-item bg-white p-2 rounded-lg shadow-md flex items-center space-x-2 w-full cursor-grab active:cursor-grabbing';
              itemEl.setAttribute('data-title', song.title);
-             itemEl.dataset.artwork = song.artwork; // artworkも保持
-             itemEl.dataset.album = song.album;   // albumも保持
+             itemEl.dataset.artwork = song.artwork;
+             itemEl.dataset.album = song.album;
              itemEl.innerHTML = `
                 <img src="${song.artwork}" alt="${song.title}" class="w-16 h-16 rounded-lg object-cover shadow-sm bg-gray-200">
                 <div class="flex-grow">
@@ -148,7 +148,7 @@
                                     <div class="placeholder-text flex-grow text-center">ここに曲をドラッグ＆ドロップ</div>`;
                 rankingBoardElement.appendChild(slotEl);
             }
-            setupSortable(); // Sortableを再設定
+            setupSortable();
         };
 
         const clearList = () => { if (confirm('本当にランキングをすべてリセットしますか？')) initializeApp(); };
@@ -183,72 +183,90 @@
             // 各スロットを独立したSortableインスタンスにする
             document.querySelectorAll('.drop-zone').forEach(slot => {
                 new Sortable(slot, {
-                    group: 'shishamo-songs',
+                    group: { name: 'shishamo-songs', pull: true, put: true }, // pull: trueを追加してランキング内での移動を可能に
                     animation: 150,
+                    draggable: '.ranked-item', // ドラッグできる要素を明示
                     onAdd: function(evt) {
-                        const droppedItem = evt.item; // パレットから来た要素 (クローン)
-                        const targetSlot = evt.to;   // ドロップされたスロット
-                        const newSongData = droppedItem.dataset;
-                        const targetRank = parseInt(targetSlot.dataset.rank); // ターゲットランク (1-indexed)
+                        const droppedItem = evt.item; 
+                        const targetSlot = evt.to;   
+                        const targetRank = parseInt(targetSlot.dataset.rank);
                         
                         const slots = Array.from(rankingBoardElement.querySelectorAll('.drop-zone'));
+                        
+                        // ターゲットスロットに既に曲があるかを確認 (ゴースト要素を除く)
+                        // SortableJSはonAdd前にアイテムを既に挿入している可能性があるため、既存要素を正しく特定する
+                        const existingItemInTarget = targetSlot.querySelector('.ranked-item:not(.sortable-ghost)');
                         let displacedItemData = null;
 
-                        // 1. ターゲットスロットに既に曲があるか確認
-                        const existingItemInTarget = targetSlot.querySelector('.ranked-item');
+                        // 1. ターゲットスロットに既に曲があるか確認し、押し出す曲のデータを保持
                         if (existingItemInTarget) {
-                            // 押し出す曲のデータを保持
                             displacedItemData = existingItemInTarget.dataset;
+                            // 既存の要素を削除 (カスケードのためにデータを保持した後、削除)
+                            existingItemInTarget.remove();
                         }
-
-                        // 2. 新しい曲をターゲットスロットに挿入（常に上書き）
+                        
+                        // --- Clean up the target slot's original content ---
                         targetSlot.querySelector('.placeholder-text')?.remove();
-                        // 既存の ranked-item を削除
-                        targetSlot.querySelectorAll('.ranked-item').forEach(el => el.remove()); 
+                        
+                        // --- 2. 新しい曲をターゲットスロットに挿入 ---
+                        const newSongData = droppedItem.dataset;
+                        
+                        // Sortableが挿入した要素(droppedItem)を一旦削除して、重複を防ぐ（非常に重要）
+                        droppedItem.remove(); 
+                        
+                        // 正しい要素を挿入
                         targetSlot.appendChild(createRankedItemElement(newSongData));
                         targetSlot.classList.add('filled');
                         
-                        // パレット側の曲を無効化
-                        songPaletteElement.querySelector(`[data-title="${newSongData.title}"]`)?.classList.add('disabled');
+                        // --- 3. ソーススロットの状態をリセット (ランキング内移動の場合のみ) ---
+                        if (evt.from !== songPaletteElement) {
+                            // ランキング内での移動の場合、元々あったスロットを空の状態に戻す
+                            const sourceSlot = evt.from;
+                            // sourceSlotにranked-itemが残っていなければ（移動成功していれば）リセット
+                            if (!sourceSlot.querySelector('.ranked-item')) {
+                                sourceSlot.classList.remove('filled');
+                                sourceSlot.innerHTML = `<div class="rank text-2xl font-bold text-pink-400 w-12 text-center flex-shrink-0">${sourceSlot.dataset.rank}</div>
+                                                        <div class="placeholder-text flex-grow text-center">ここに曲をドラッグ＆ドロップ</div>`;
+                            }
+                        } else {
+                            // パレットからの移動の場合、パレット側の曲を無効化
+                            songPaletteElement.querySelector(`[data-title="${newSongData.title}"]`)?.classList.add('disabled');
+                        }
 
-                        // 3. 押し出し処理（カスケードシフト）
+
+                        // --- 4. 押し出し処理（カスケードシフト） ---
                         if (displacedItemData) {
-                            // ターゲットランクの次のスロットから順に処理
+                            let itemToPush = displacedItemData;
+
                             for (let i = targetRank; i < slots.length; i++) {
-                                const nextSlot = slots[i]; // i は 0-indexed なので、次のスロット
+                                const nextSlot = slots[i]; 
                                 const nextItem = nextSlot.querySelector('.ranked-item');
                                 
-                                // nextSlotに元々入っていた曲を、次のループで押し出す対象として保持
                                 let itemToBeDisplaced = nextItem ? nextItem.dataset : null; 
                                 
-                                // 前のランクから押し出されてきた曲 (displacedItemData) を nextSlot に配置
+                                // itemToPush を nextSlot に配置
                                 nextSlot.querySelector('.placeholder-text')?.remove();
                                 nextSlot.querySelectorAll('.ranked-item').forEach(el => el.remove()); 
-                                nextSlot.appendChild(createRankedItemElement(displacedItemData));
+                                nextSlot.appendChild(createRankedItemElement(itemToPush));
                                 nextSlot.classList.add('filled');
+                                
+                                itemToPush = itemToBeDisplaced;
 
-                                // 次の押し出し対象を更新
-                                displacedItemData = itemToBeDisplaced;
-
-                                // 次の押し出し対象が無ければ（空のスロットに配置されたら）、カスケードストップ
-                                if (!displacedItemData) {
+                                if (!itemToPush) {
                                     break;
                                 }
                             }
                             
-                            // 4. 最後まで押し出された曲があれば、パレットに戻す
-                            if (displacedItemData) {
-                                songPaletteElement.querySelector(`[data-title="${displacedItemData.title}"]`)?.classList.remove('disabled');
-                                // リストの最後のスロットをリセットして、空の状態にする
+                            // 5. 最後まで押し出された曲があれば、パレットに戻す
+                            if (itemToPush) {
+                                songPaletteElement.querySelector(`[data-title="${itemToPush.title}"]`)?.classList.remove('disabled');
+                                
                                 const lastSlotIndex = slots.length - 1;
                                 slots[lastSlotIndex].classList.remove('filled');
                                 slots[lastSlotIndex].innerHTML = `<div class="rank text-2xl font-bold text-pink-400 w-12 text-center flex-shrink-0">${slots.length}</div>
                                                                  <div class="placeholder-text flex-grow text-center">ここに曲をドラッグ＆ドロップ</div>`;
                             }
                         }
-                        
-                        // Sortableが生成したクローン要素は削除
-                        droppedItem.remove(); 
                     },
                 });
             });
