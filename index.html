@@ -25,24 +25,24 @@
             transform: scale(1.02);
             cursor: grabbing;
         }
-        /* スクロールバーのスタイル */
         .custom-scrollbar::-webkit-scrollbar { width: 8px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 10px;}
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
         .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
-
-        /* ドロップゾーンのスタイル */
         .drop-zone {
             border: 2px dashed #cbd5e1;
-            min-height: 96px; /* アイテムの高さに合わせる */
+            min-height: 96px;
         }
-        .drop-zone .placeholder-text {
-            color: #94a3b8;
-        }
-        /* ドロップゾーンにアイテムがある場合 */
+        .drop-zone .placeholder-text { color: #94a3b8; }
         .drop-zone.filled {
             border-style: solid;
-            border-color: #fbcfe8; /* pink-100 */
+            border-color: #fbcfe8;
+        }
+        /* ★追加: 使用不可のアイテムスタイル */
+        .palette-item.disabled {
+            opacity: 0.4;
+            pointer-events: none;
+            cursor: not-allowed;
         }
     </style>
 </head>
@@ -64,13 +64,11 @@
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             <div class="lg:col-span-1">
                 <h2 class="text-2xl font-bold text-center mb-4">曲リスト</h2>
-                <div id="song-palette" class="space-y-3 bg-gray-200 p-4 rounded-lg h-[80vh] overflow-y-auto custom-scrollbar">
-                    </div>
+                <div id="song-palette" class="space-y-3 bg-gray-200 p-4 rounded-lg h-[80vh] overflow-y-auto custom-scrollbar"></div>
             </div>
             <div class="lg:col-span-2">
                 <h2 class="text-2xl font-bold text-center mb-4">マイランキング</h2>
-                <main id="ranking-board" class="space-y-4 h-[80vh] overflow-y-auto custom-scrollbar pr-2">
-                    </main>
+                <main id="ranking-board" class="space-y-4 h-[80vh] overflow-y-auto custom-scrollbar pr-2"></main>
             </div>
         </div>
         
@@ -95,8 +93,8 @@
         
         const TOTAL_SONGS = shishamoSongs.length;
 
-        // ★追加: ランキングの枠(ドロップゾーン)を生成する関数
         const createRankingSlots = () => {
+            rankingBoardElement.innerHTML = ''; // 初期化
             for (let i = 1; i <= TOTAL_SONGS; i++) {
                 const slotEl = document.createElement('div');
                 slotEl.className = 'drop-zone flex items-center p-2 rounded-lg transition-colors';
@@ -111,11 +109,7 @@
             const itemEl = document.createElement('div');
             itemEl.className = 'palette-item bg-white p-2 rounded-lg shadow flex items-center space-x-3 cursor-grab active:cursor-grabbing';
             itemEl.setAttribute('data-title', song.title);
-            // itemのdatasetに曲情報を埋め込む
-            Object.keys(song).forEach(key => {
-                itemEl.dataset[key] = song[key];
-            });
-
+            Object.keys(song).forEach(key => itemEl.dataset[key] = song[key]);
             itemEl.innerHTML = `
                 <img src="${song.artwork}" alt="${song.title}" class="w-12 h-12 rounded-md object-cover bg-gray-200 pointer-events-none">
                 <div class="flex-grow pointer-events-none">
@@ -127,7 +121,7 @@
 
         const createRankedItemElement = (song) => {
              const itemEl = document.createElement('div');
-             itemEl.className = 'ranked-item bg-white p-2 rounded-lg shadow-md flex items-center space-x-2 w-full';
+             itemEl.className = 'ranked-item bg-white p-2 rounded-lg shadow-md flex items-center space-x-2 w-full cursor-grab active:cursor-grabbing';
              itemEl.setAttribute('data-title', song.title);
              itemEl.innerHTML = `
                 <img src="${song.artwork}" alt="${song.title}" class="w-16 h-16 rounded-lg object-cover shadow-sm bg-gray-200">
@@ -141,15 +135,21 @@
             
             itemEl.querySelector('.delete-btn').addEventListener('click', (e) => {
                 const parentSlot = e.currentTarget.closest('.drop-zone');
+                const songTitle = itemEl.dataset.title;
+                
+                // ★変更: パレットの曲を有効に戻す
+                const paletteItem = songPaletteElement.querySelector(`[data-title="${songTitle}"]`);
+                if (paletteItem) paletteItem.classList.remove('disabled');
+
                 parentSlot.innerHTML = `<div class="rank text-2xl font-bold text-pink-400 w-12 text-center flex-shrink-0">${parentSlot.dataset.rank}</div>
                                         <div class="placeholder-text flex-grow text-center">ここに曲をドラッグ＆ドロップ</div>`;
                 parentSlot.classList.remove('filled');
             });
-
             return itemEl;
         }
 
         const loadPalette = () => {
+            songPaletteElement.innerHTML = ''; // 初期化
             shishamoSongs.forEach(song => {
                 songPaletteElement.appendChild(createPaletteItemElement(song));
             });
@@ -157,23 +157,23 @@
 
         const clearList = () => {
             if (confirm('本当にランキングをすべてリセットしますか？')) {
-                rankingBoardElement.innerHTML = '';
                 createRankingSlots();
+                // ★変更: 全てのパレットアイテムを有効化
+                songPaletteElement.querySelectorAll('.disabled').forEach(item => item.classList.remove('disabled'));
             }
         };
 
         const exportListAsText = () => {
             const rankedItems = rankingBoardElement.querySelectorAll('.ranked-item');
             if (rankedItems.length === 0) {
-                alert('ランキングが空です。');
-                return;
+                alert('ランキングが空です。'); return;
             }
             let outputString = 'わたしのSHISHAMO楽曲ランキング\n========================\n';
             rankingBoardElement.querySelectorAll('.drop-zone').forEach(slot => {
                 const rankedItem = slot.querySelector('.ranked-item');
                 if(rankedItem){
                     const rank = slot.dataset.rank;
-                    const title = rankedItem.dataset.title;
+                    const title = rankedItem.getAttribute('data-title');
                     outputString += `${rank}. ${title}\n`;
                 }
             });
@@ -183,62 +183,81 @@
             exportContainer.scrollIntoView({ behavior: 'smooth' });
         };
         
-        // --- イベントリスナーの設定 ---
-        clearButton.addEventListener('click', clearList);
-        exportButton.addEventListener('click', exportListAsText);
         document.addEventListener('DOMContentLoaded', () => {
             loadPalette();
             createRankingSlots();
         });
+        clearButton.addEventListener('click', clearList);
+        exportButton.addEventListener('click', exportListAsText);
 
         // --- SortableJSの初期化 ---
-        // 左: 曲パレット
         new Sortable(songPaletteElement, {
-            group: {
-                name: 'shishamo-songs',
-                pull: 'clone', // ドラッグ時に要素をコピーする
-                put: false // このリストにはドロップさせない
-            },
-            sort: false, // パレット内の並び替えは無効
-            animation: 150
+            group: { name: 'shishamo-songs', pull: 'clone', put: false },
+            sort: false,
+            animation: 150,
+            // ★追加: disabledクラスを持つアイテムはドラッグ不可にする
+            filter: '.disabled',
         });
-
-        // 右: ランキングボード (各スロットをグループ化)
+        
         new Sortable(rankingBoardElement, {
-            group: 'shishamo-songs',
+            group: { name: 'shishamo-songs', put: true }, // ドロップを受け入れる
             animation: 150,
             onAdd: function (evt) {
                 const originalItem = evt.item; // パレットからコピーされた要素
-                const targetSlot = evt.to; // ドロップされた先の要素(この場合はranking-board)
-                
-                // 本来のドロップ先であるべき .drop-zone を探す
-                let dropZone = originalItem.closest('.drop-zone');
-                if (!dropZone) { // ranking-board直下にドロップされた場合、最後の要素として扱う
-                    dropZone = evt.originalEvent.target.closest('.drop-zone') || rankingBoardElement.lastChild;
-                }
+                const dropZone = evt.to.closest('.drop-zone') || evt.originalEvent.target.closest('.drop-zone');
 
-                // もしドロップ先に既に曲があれば、中身を入れ替える
+                if (!dropZone) { originalItem.remove(); return; }
+
                 const existingItem = dropZone.querySelector('.ranked-item');
                 if (existingItem) {
-                    // ここでは単純に上書きする。元の場所に戻すなどの処理も可能
+                    const existingTitle = existingItem.getAttribute('data-title');
+                    const paletteItemToEnable = songPaletteElement.querySelector(`[data-title="${existingTitle}"]`);
+                    if(paletteItemToEnable) paletteItemToEnable.classList.remove('disabled');
                     existingItem.remove();
                 }
 
                 const songData = originalItem.dataset;
                 const newRankedItem = createRankedItemElement(songData);
-
-                // プレースホルダーを削除し、新しいアイテムを追加
+                
+                // ★変更: パレットの曲を無効化
+                const paletteItemToDisable = songPaletteElement.querySelector(`[data-title="${songData.title}"]`);
+                if(paletteItemToDisable) paletteItemToDisable.classList.add('disabled');
+                
                 const placeholder = dropZone.querySelector('.placeholder-text');
                 if(placeholder) placeholder.remove();
                 
                 dropZone.appendChild(newRankedItem);
                 dropZone.classList.add('filled');
-
-                // パレットから来た元のクローン要素は削除
                 originalItem.remove();
+            },
+            // ★追加: ランキング内で移動した場合の処理
+            onEnd: function (evt) {
+                const item = evt.item; // 移動した ranked-item
+                const toSlot = evt.to.closest('.drop-zone');
+                const fromSlot = evt.from.closest('.drop-zone');
+
+                // スロット間でアイテムが正しく入れ替わるように調整
+                if (evt.to !== evt.from) {
+                     // toSlotに既にアイテムがあれば、それをfromSlotに移動する
+                    if (evt.pullMode === 'clone') { // fromがパレットの場合
+                        return;
+                    }
+                    const itemInToSlot = Array.from(toSlot.children).find(el => el !== item && el.classList.contains('ranked-item'));
+                    if (itemInToSlot) {
+                        fromSlot.appendChild(itemInToSlot);
+                    }
+                }
+                 // 空になったスロットのスタイルを更新
+                if (!fromSlot.querySelector('.ranked-item')) {
+                     fromSlot.innerHTML = `<div class="rank text-2xl font-bold text-pink-400 w-12 text-center flex-shrink-0">${fromSlot.dataset.rank}</div>
+                                        <div class="placeholder-text flex-grow text-center">ここに曲をドラッグ＆ドロップ</div>`;
+                    fromSlot.classList.remove('filled');
+                }
+                 if (toSlot.querySelector('.ranked-item')) {
+                    toSlot.classList.add('filled');
+                 }
             }
         });
-
     </script>
 </body>
 </html>
