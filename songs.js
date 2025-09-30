@@ -20,6 +20,10 @@ const shishamoSongs = [
   { title: "サブギターの歌", album: "SHISHAMO 1", artwork: "img/shishamo_1.jpg" },
   { title: "君との事", album: "SHISHAMO 1", artwork: "img/shishamo_1.jpg" },
   { title: "恋する", album: "SHISHAMO 1", artwork: "img/shishamo_1.jpg" },
+  // 君と夏フェス
+  { title: "脇役", album: "君と夏フェス", artwork: "img/kiminatsufes.jpg" },
+  // 量産型彼氏
+  { title: "転校の歌", album: "量産型彼氏", artwork: "img/ryosangatakareshi.jpg" },
   // SHISHAMO 2
   { title: "僕、実は", album: "SHISHAMO 2", artwork: "img/shishamo_2.jpg" },
   { title: "きみと話せないのは", album: "SHISHAMO 2", artwork: "img/shishamo_2.jpg" },
@@ -56,6 +60,9 @@ const shishamoSongs = [
   { title: "夏の恋人", album: "SHISHAMO 4", artwork: "img/shishamo_4.jpg" },
   { title: "魔法のように", album: "SHISHAMO 4", artwork: "img/shishamo_4.jpg" },
   { title: "明日も", album: "SHISHAMO 4", artwork: "img/shishamo_4.jpg" },
+  // OH！
+  { title: "OH！", album: "OH！", artwork: "img/oh.jpg" },
+  { title: "許してあげるから", album: "OH！", artwork: "img/oh.jpg" },
   // SHISHAMO 5
   { title: "ねぇ、", album: "SHISHAMO 5", artwork: "img/shishamo_5.jpg" },
   { title: "ドキドキ", album: "SHISHAMO 5", artwork: "img/shishamo_5.jpg" },
@@ -84,6 +91,15 @@ const shishamoSongs = [
   { title: "またね", album: "SHISHAMO 6", artwork: "img/shishamo_6.jpg" },
   { title: "君の隣にいたいから", album: "SHISHAMO 6", artwork: "img/shishamo_6.jpg" },
   { title: "曇り夜空は雨の予報", album: "SHISHAMO 6", artwork: "img/shishamo_6.jpg" },
+  // 妄想サマー
+  { title: "妄想サマー", album: "妄想サマー", artwork: "img/mososummer.jpg" },
+  // ブーツを鳴らして - EP
+  { title: "intro", album: "ブーツを鳴らして - EP", artwork: "img/boots.jpg" },
+  { title: "ブーツを鳴らして", album: "ブーツを鳴らして - EP", artwork: "img/boots.jpg" },
+  { title: "マフラー", album: "ブーツを鳴らして - EP", artwork: "img/boots.jpg" },
+  { title: "ミルクコーヒー", album: "ブーツを鳴らして - EP", artwork: "img/boots.jpg" },
+  // 狙うは君のど真ん中
+  { title: "狙うは君のど真ん中", album: "狙うは君のど真ん中", artwork: "img/nerauwa.jpg" },
   // SHISHAMO 7
   { title: "中毒", album: "SHISHAMO 7", artwork: "img/shishamo_7.jpg" },
   { title: "人間", album: "SHISHAMO 7", artwork: "img/shishamo_7.jpg" },
