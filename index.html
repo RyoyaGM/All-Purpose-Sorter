@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>なんでもランキングソーター</title>
+    <!-- Tailwind CSSを読み込み -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- SortableJSライブラリを読み込み -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
+    <!-- Google Fontsを読み込み -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        /* M PLUS Rounded 1cフォントを適用 */
+        body {
+            font-family: 'M PLUS Rounded 1c', sans-serif;
+        }
+        /* ドラッグ中のゴースト要素のスタイル */
+        .ghost-class {
+            opacity: 0.4;
+            background: #fde047; /* yellow-200 */
+            border: 2px dashed #f97316; /* orange-500 */
+        }
+        /* ドラッグ中の要素自体のスタイル */
+        .sortable-chosen {
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            transform: scale(1.02);
+        }
+        /* グラデーション背景 */
+        body {
+            background: linear-gradient(135deg, #a5f3fc, #f9a8d4);
+        }
+        /* テキストエリアのplaceholderの改行を有効にする */
+        textarea::placeholder {
+            white-space: pre-line;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 text-gray-800 antialiased">
+
+    <div class="container mx-auto p-4 sm:p-6 md:p-8 max-w-2xl">
+
+        <!-- ヘッダー -->
+        <header class="text-center mb-8">
+            <h1 class="text-4xl sm:text-5xl font-bold text-pink-500 drop-shadow-md">なんでもランキング</h1>
+            <p class="text-lg sm:text-xl text-gray-600 mt-2">My Best Sorter</p>
+            <p class="text-sm text-gray-500 mt-2">好きなものを入力して、ドラッグ&ドロップで並べ替えよう！</p>
+        </header>
+
+        <!-- アイテム追加フォーム -->
+        <div class="mb-8">
+            <div class="flex flex-col sm:flex-row gap-2">
+                <textarea id="new-items-textarea" placeholder="好きなものを改行で区切って入力 (例:&#10;ラーメン&#10;カレー&#10;寿司)" class="flex-grow p-3 rounded-lg border-2 border-gray-300 focus:border-pink-400 focus:ring focus:ring-pink-200 focus:ring-opacity-50 transition" rows="4"></textarea>
+                <button id="add-item-button" class="bg-pink-500 text-white font-bold py-3 px-6 rounded-lg hover:bg-pink-600 transition-colors shadow-md focus:outline-none focus:ring-2 focus:ring-pink-400 focus:ring-opacity-75">追加</button>
+            </div>
+        </div>
+
+
+        <!-- リスト -->
+        <main>
+            <div id="item-list" class="space-y-4">
+                <!-- ここにJavaScriptでアイテムが挿入されます -->
+            </div>
+        </main>
+        
+        <!-- フッター -->
+        <footer class="text-center mt-12 text-gray-500 text-sm space-y-2">
+            <p>&copy; 2025 なんでもランキングソーター</p>
+            <p>GitHub Pagesなどで公開して使ってみよう！</p>
+        </footer>
+
+    </div>
+
+    <script>
+        // --- ここからがアプリの心臓部です ---
+
+        // HTML要素の取得
+        const itemListElement = document.getElementById('item-list');
+        const newItemsTextarea = document.getElementById('new-items-textarea');
+        const addItemButton = document.getElementById('add-item-button');
+        
+        // ローカルストレージに保存する際のキー
+        const localStorageKey = 'myBestSorterList';
+
+        /**
+         * @description 各アイテムの順位（数字）を更新して表示します。
+         */
+        const updateRanking = () => {
+            const items = itemListElement.querySelectorAll('.sortable-item');
+            items.forEach((item, index) => {
+                const rankElement = item.querySelector('.rank');
+                if (rankElement) {
+                    rankElement.textContent = `${index + 1}`;
+                }
+            });
+        };
+
+        /**
+         * @description 現在のリストの状態をローカルストレージにJSON形式で保存します。
+         */
+        const saveList = () => {
+            const items = [];
+            itemListElement.querySelectorAll('.sortable-item').forEach(itemEl => {
+                items.push({
+                    id: itemEl.getAttribute('data-id'),
+                    title: itemEl.querySelector('h3').textContent
+                });
+            });
+            localStorage.setItem(localStorageKey, JSON.stringify(items));
+        };
+
+        /**
+         * @description 渡されたitemオブジェクトからHTML要素を生成して返します。
+         * @param {object} item - { id: string, title: string }
+         * @returns {HTMLElement} 生成されたdiv要素
+         */
+        const createItemElement = (item) => {
+            const itemEl = document.createElement('div');
+            itemEl.className = 'sortable-item bg-white p-4 rounded-xl shadow-md flex items-center space-x-4 cursor-grab active:cursor-grabbing transition-all duration-300 ease-in-out';
+            itemEl.setAttribute('data-id', item.id);
+
+            // アイテム名の先頭2文字をプレースホルダー画像に表示
+            const placeholderText = encodeURIComponent(item.title.substring(0, 2));
+            const imageUrl = `https://placehold.co/100x100/cccccc/ffffff?text=${placeholderText}`;
+
+            itemEl.innerHTML = `
+                <div class="rank text-2xl font-bold text-pink-400 w-8 text-center flex-shrink-0"></div>
+                <img src="${imageUrl}" alt="${item.title}" class="w-16 h-16 rounded-lg object-cover shadow-sm bg-gray-200">
+                <div class="flex-grow">
+                    <h3 class="text-lg font-bold text-gray-800">${item.title}</h3>
+                </div>
+                <div class="handle text-gray-300 cursor-grab" title="ドラッグして並べ替え">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="9" y1="18" x2="9" y2="6"></line><line x1="15" y1="18" x2="15" y2="6"></line>
+                    </svg>
+                </div>
+                <button class="delete-btn text-gray-400 hover:text-red-500 transition-colors p-1" title="削除">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                </button>
+            `;
+
+            // 削除ボタンがクリックされたときの処理
+            itemEl.querySelector('.delete-btn').addEventListener('click', () => {
+                itemEl.classList.add('animate-pulse', 'opacity-0'); // 削除アニメーション
+                // アニメーションが終わった後に要素を削除
+                setTimeout(() => {
+                    itemEl.remove();
+                    updateRanking();
+                    saveList();
+                }, 300);
+            });
+            return itemEl;
+        };
+        
+        /**
+         * @description ページの読み込み時にローカルストレージからリストを読み込んで表示します。
+         */
+        const loadList = () => {
+            const savedItems = JSON.parse(localStorage.getItem(localStorageKey)) || [];
+            savedItems.forEach(item => {
+                const itemEl = createItemElement(item);
+                itemListElement.appendChild(itemEl);
+            });
+            updateRanking();
+        };
+
+        /**
+         * @description テキストエリアの入力値から新しいアイテムをリストに追加します。
+         */
+        const addNewItems = () => {
+            // 入力値を改行で分割して配列にする
+            const titles = newItemsTextarea.value.split('\n');
+            let itemsAdded = false;
+            titles.forEach(title => {
+                const trimmedTitle = title.trim();
+                // 空白のみの行は無視する
+                if (trimmedTitle !== '') {
+                    const newItem = {
+                        id: Date.now().toString() + Math.random().toString(36).substr(2, 9), 
+                        title: trimmedTitle
+                    };
+                    const itemEl = createItemElement(newItem);
+                    itemListElement.appendChild(itemEl);
+                    itemsAdded = true;
+                }
+            });
+
+            // 1つでもアイテムが追加された場合
+            if (itemsAdded) {
+                updateRanking();
+                saveList();
+                newItemsTextarea.value = ''; // 入力欄をクリア
+                newItemsTextarea.focus(); // 入力欄にフォーカスを戻す
+            }
+        };
+
+        // --- イベントリスナーの設定 ---
+
+        // 「追加」ボタンがクリックされたらaddNewItems関数を実行
+        addItemButton.addEventListener('click', addNewItems);
+
+        // ページが読み込まれたらloadList関数を実行
+        document.addEventListener('DOMContentLoaded', loadList);
+
+        // SortableJSを初期化してドラッグ＆ドロップ機能を有効にする
+        new Sortable(itemListElement, {
+            animation: 150, // アニメーションの時間
+            ghostClass: 'ghost-class', // ドラッグ中のゴースト要素に適用されるクラス
+            chosenClass: 'sortable-chosen', // ドラッグされている要素に適用されるクラス
+            handle: '.handle', // ドラッグ操作の起点となる要素
+            onEnd: function (evt) {
+                // ドラッグ終了時に順位を更新し、保存する
+                updateRanking();
+                saveList();
+            },
+        });
+    </script>
+</body>
+</html>
+
+
