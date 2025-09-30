@@ -39,6 +39,7 @@
         <div class="mb-8 flex flex-col sm:flex-row justify-center gap-2">
             <button id="load-songs-button" class="bg-pink-500 text-white font-bold py-3 px-6 rounded-lg hover:bg-pink-600 transition-colors shadow-md focus:outline-none focus:ring-2 focus:ring-pink-400 focus:ring-opacity-75">SHISHAMO全曲を読み込む</button>
             <button id="clear-button" class="bg-gray-500 text-white font-bold py-3 px-6 rounded-lg hover:bg-gray-600 transition-colors shadow-md focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-opacity-75">ランキングをリセット</button>
+            <button id="export-button" class="bg-green-500 text-white font-bold py-3 px-6 rounded-lg hover:bg-green-600 transition-colors shadow-md focus:outline-none focus:ring-2 focus:ring-green-400 focus:ring-opacity-75">ランキングを出力</button>
         </div>
 
         <main>
@@ -46,6 +47,12 @@
                 </div>
         </main>
         
+        <div id="export-container" class="hidden mt-8">
+            <h2 class="text-2xl font-bold text-center mb-4">ランキング結果</h2>
+            <textarea id="export-textarea" readonly class="w-full h-64 p-3 rounded-lg border-2 border-gray-300 bg-gray-50 font-mono"></textarea>
+            <p class="text-center text-sm text-gray-600 mt-2">上のテキストボックス内のテキストをコピーして使ってください。</p>
+        </div>
+
         <footer class="text-center mt-12 text-gray-500 text-sm space-y-2">
             <p>&copy; 2025 SHISHAMO 楽曲ソーター</p>
         </footer>
@@ -53,14 +60,17 @@
     </div>
 
     <script>
-        // --- ここからがアプリの心臓部です ---
-
+        // --- HTML要素の取得 ---
         const itemListElement = document.getElementById('item-list');
         const loadSongsButton = document.getElementById('load-songs-button');
         const clearButton = document.getElementById('clear-button');
+        const exportButton = document.getElementById('export-button'); // ★追加
+        const exportContainer = document.getElementById('export-container'); // ★追加
+        const exportTextarea = document.getElementById('export-textarea'); // ★追加
         
-        const localStorageKey = 'myBestShishamoSorterList_v2'; // キーを新しくして以前のデータを引き継がないように変更
+        const localStorageKey = 'myBestShishamoSorterList_v2';
 
+        // --- 関数定義 ---
         const updateRanking = () => {
             const items = itemListElement.querySelectorAll('.sortable-item');
             items.forEach((item, index) => {
@@ -78,7 +88,7 @@
                     id: itemEl.getAttribute('data-id'),
                     title: itemEl.querySelector('h3').textContent,
                     album: itemEl.querySelector('p').textContent,
-                    artwork: itemEl.querySelector('img').getAttribute('src') // artwrokも保存
+                    artwork: itemEl.querySelector('img').getAttribute('src')
                 });
             });
             localStorage.setItem(localStorageKey, JSON.stringify(items));
@@ -88,8 +98,6 @@
             const itemEl = document.createElement('div');
             itemEl.className = 'sortable-item bg-white p-4 rounded-xl shadow-md flex items-center space-x-4 cursor-grab active:cursor-grabbing transition-all duration-300 ease-in-out';
             itemEl.setAttribute('data-id', item.id);
-
-            // ★変更点: 画像のパスをitem.artworkから取得する
             itemEl.innerHTML = `
                 <div class="rank text-2xl font-bold text-pink-400 w-8 text-center flex-shrink-0"></div>
                 <img src="${item.artwork}" alt="${item.title}" class="w-16 h-16 rounded-lg object-cover shadow-sm bg-gray-200">
@@ -98,17 +106,12 @@
                     <p class="text-sm text-gray-500">${item.album}</p>
                 </div>
                 <div class="handle text-gray-300 cursor-grab" title="ドラッグして並べ替え">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <line x1="9" y1="18" x2="9" y2="6"></line><line x1="15" y1="18" x2="15" y2="6"></line>
-                    </svg>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="9" y1="18" x2="9" y2="6"></line><line x1="15" y1="18" x2="15" y2="6"></line></svg>
                 </div>
                 <button class="delete-btn text-gray-400 hover:text-red-500 transition-colors p-1" title="削除">
-                    <svg xmlns="http://www.w.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line>
-                    </svg>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
                 </button>
             `;
-
             itemEl.querySelector('.delete-btn').addEventListener('click', () => {
                 itemEl.classList.add('animate-pulse', 'opacity-0');
                 setTimeout(() => {
@@ -132,24 +135,17 @@
         };
 
         const loadAllShishamoSongs = () => {
-            if (itemListElement.children.length > 0) {
-                if (!confirm('現在のランキングはリセットされます。よろしいですか？')) {
-                    return;
-                }
-            }
+            if (itemListElement.children.length > 0 && !confirm('現在のランキングはリセットされます。よろしいですか？')) return;
             itemListElement.innerHTML = ''; 
-
             shishamoSongs.forEach(song => {
                 const newItem = {
                     id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
                     title: song.title,
                     album: song.album,
-                    artwork: song.artwork // artworkプロパティを追加
+                    artwork: song.artwork
                 };
-                const itemEl = createItemElement(newItem);
-                itemListElement.appendChild(itemEl);
+                itemListElement.appendChild(createItemElement(newItem));
             });
-            
             updateRanking();
             saveList();
         };
@@ -161,10 +157,46 @@
             }
         };
 
+        // ★追加: ランキングをテキストで出力する関数
+        const exportListAsText = () => {
+            const items = itemListElement.querySelectorAll('.sortable-item');
+            if (items.length === 0) {
+                alert('ランキングが空です。先に曲を読み込んで並べ替えてください。');
+                return;
+            }
+
+            let outputString = 'わたしのSHISHAMO楽曲ランキング TOP10\n';
+            outputString += '========================\n';
+            
+            // 全てのアイテムを出力する
+            items.forEach(item => {
+                const rank = item.querySelector('.rank').textContent;
+                const title = item.querySelector('h3').textContent;
+                const album = item.querySelector('p').textContent;
+                outputString += `${rank}. ${title} (${album})\n`;
+            });
+            
+            outputString += '========================\n';
+            outputString += `#SHISHAMO楽曲ソーター で作成\n`;
+
+            exportTextarea.value = outputString;
+            exportContainer.classList.remove('hidden'); // 結果表示エリアを表示
+            exportTextarea.select(); // テキストを全選択
+            exportTextarea.setSelectionRange(0, 99999); // モバイル端末用の全選択
+            
+            exportContainer.scrollIntoView({ behavior: 'smooth' }); // 結果表示エリアまでスクロール
+            
+            alert('ランキング結果を出力しました。テキストボックス内の文章をコピーしてご利用ください。');
+        };
+
+
+        // --- イベントリスナーの設定 ---
         loadSongsButton.addEventListener('click', loadAllShishamoSongs);
         clearButton.addEventListener('click', clearList);
+        exportButton.addEventListener('click', exportListAsText); // ★追加
         document.addEventListener('DOMContentLoaded', loadListFromStorage);
 
+        // --- SortableJSの初期化 ---
         new Sortable(itemListElement, {
             animation: 150,
             ghostClass: 'ghost-class',
