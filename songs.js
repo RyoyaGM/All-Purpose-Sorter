@@ -114,18 +114,18 @@ const shishamoSongs = [
   { title: "ごめんね", album: "SHISHAMO 7", artwork: "img/shishamo_7.jpg" },
   { title: "通り雨", album: "SHISHAMO 7", artwork: "img/shishamo_7.jpg" },
   { title: "夢で逢えても", album: "SHISHAMO 7", artwork: "img/shishamo_7.jpg" },
-  // SHISHAMO 9
-  { title: "最高速度", album: "SHISHAMO 9", artwork: "img/shishamo_9.jpg" },
-  { title: "夏恋注意報", album: "SHISHAMO 9", artwork: "img/shishamo_9.jpg" },
-  { title: "私のままで", album: "SHISHAMO 9", artwork: "img/shishamo_9.jpg" },
-  { title: "会えないのに", album: "SHISHAMO 9", artwork: "img/shishamo_9.jpg" },
-  { title: "犬ころ", album: "SHISHAMO 9", artwork: "img/shishamo_9.jpg" },
-  { title: "ハリボテ", album: "SHISHAMO 9", artwork: "img/shishamo_9.jpg" },
-  { title: "わたしの宇宙", album: "SHISHAMO 9", artwork: "img/shishamo_9.jpg" },
-  { title: "きらきら", album: "SHISHAMO 9", artwork: "img/shishamo_9.jpg" },
-  { title: "なんとなく。", album: "SHISHAMO 9", artwork: "img/shishamo_9.jpg" },
-  { title: "春に迷い込んで", album: "SHISHAMO 9", artwork: "img/shishamo_9.jpg" },
-  { title: "溺れてく", album: "SHISHAMO 9", artwork: "img/shishamo_9.jpg" },
-  { title: "ハッピーエンド", album: "SHISHAMO 9", artwork: "img/shishamo_9.jpg" },
-  { title: "恋じゃなかったら", album: "SHISHAMO 9", artwork: "img/shishamo_9.jpg" }
+  // SHISHAMO 8
+  { title: "最高速度", album: "SHISHAMO 8", artwork: "img/shishamo_8.jpg" },
+  { title: "夏恋注意報", album: "SHISHAMO 8", artwork: "img/shishamo_8.jpg" },
+  { title: "私のままで", album: "SHISHAMO 8", artwork: "img/shishamo_8.jpg" },
+  { title: "会えないのに", album: "SHISHAMO 8", artwork: "img/shishamo_8.jpg" },
+  { title: "犬ころ", album: "SHISHAMO 8", artwork: "img/shishamo_8.jpg" },
+  { title: "ハリボテ", album: "SHISHAMO 8", artwork: "img/shishamo_8.jpg" },
+  { title: "わたしの宇宙", album: "SHISHAMO 8", artwork: "img/shishamo_8.jpg" },
+  { title: "きらきら", album: "SHISHAMO 8", artwork: "img/shishamo_8.jpg" },
+  { title: "なんとなく。", album: "SHISHAMO 8", artwork: "img/shishamo_8.jpg" },
+  { title: "春に迷い込んで", album: "SHISHAMO 8", artwork: "img/shishamo_8.jpg" },
+  { title: "溺れてく", album: "SHISHAMO 8", artwork: "img/shishamo_8.jpg" },
+  { title: "ハッピーエンド", album: "SHISHAMO 8", artwork: "img/shishamo_8.jpg" },
+  { title: "恋じゃなかったら", album: "SHISHAMO 8", artwork: "img/shishamo_8.jpg" }
 ];
