@@ -23,12 +23,27 @@
         .sortable-chosen {
             box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
             transform: scale(1.02);
+            cursor: grabbing;
         }
         /* スクロールバーのスタイル */
         .custom-scrollbar::-webkit-scrollbar { width: 8px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 10px;}
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
         .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+        /* ドロップゾーンのスタイル */
+        .drop-zone {
+            border: 2px dashed #cbd5e1;
+            min-height: 96px; /* アイテムの高さに合わせる */
+        }
+        .drop-zone .placeholder-text {
+            color: #94a3b8;
+        }
+        /* ドロップゾーンにアイテムがある場合 */
+        .drop-zone.filled {
+            border-style: solid;
+            border-color: #fbcfe8; /* pink-100 */
+        }
     </style>
 </head>
 <body class="bg-gray-100 text-gray-800 antialiased">
@@ -38,34 +53,31 @@
         <header class="text-center mb-8">
             <h1 class="text-4xl sm:text-5xl font-bold text-pink-500 drop-shadow-md">SHISHAMO 楽曲ソーター</h1>
             <p class="text-lg sm:text-xl text-gray-600 mt-2">My Best SHISHAMO Sorter</p>
-            <p class="text-sm text-gray-500 mt-2">好きな曲を右のエリアに追加して、ランキングを作ろう！</p>
+            <p class="text-sm text-gray-500 mt-2">左のリストから曲をドラッグして、右のランキングを完成させよう！</p>
         </header>
 
         <div class="mb-8 flex flex-col sm:flex-row justify-center gap-2">
-            <button id="load-songs-button" class="bg-pink-500 text-white font-bold py-3 px-6 rounded-lg hover:bg-pink-600 transition-colors shadow-md focus:outline-none focus:ring-2 focus:ring-pink-400 focus:ring-opacity-75">曲リストを読み込む</button>
             <button id="clear-button" class="bg-gray-500 text-white font-bold py-3 px-6 rounded-lg hover:bg-gray-600 transition-colors shadow-md focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-opacity-75">ランキングをリセット</button>
             <button id="export-button" class="bg-green-500 text-white font-bold py-3 px-6 rounded-lg hover:bg-green-600 transition-colors shadow-md focus:outline-none focus:ring-2 focus:ring-green-400 focus:ring-opacity-75">ランキングを出力</button>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-            <div>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            <div class="lg:col-span-1">
                 <h2 class="text-2xl font-bold text-center mb-4">曲リスト</h2>
-                <div id="song-palette" class="space-y-3 bg-gray-200 p-4 rounded-lg h-[60vh] overflow-y-auto custom-scrollbar">
+                <div id="song-palette" class="space-y-3 bg-gray-200 p-4 rounded-lg h-[80vh] overflow-y-auto custom-scrollbar">
                     </div>
             </div>
-            <div>
+            <div class="lg:col-span-2">
                 <h2 class="text-2xl font-bold text-center mb-4">マイランキング</h2>
-                <main>
-                    <div id="item-list" class="space-y-4 min-h-[60vh]">
-                        </div>
-                </main>
+                <main id="ranking-board" class="space-y-4 h-[80vh] overflow-y-auto custom-scrollbar pr-2">
+                    </main>
             </div>
         </div>
         
         <div id="export-container" class="hidden mt-8">
             <h2 class="text-2xl font-bold text-center mb-4">ランキング結果</h2>
             <textarea id="export-textarea" readonly class="w-full h-64 p-3 rounded-lg border-2 border-gray-300 bg-gray-50 font-mono"></textarea>
-            <p class="text-center text-sm text-gray-600 mt-2">上のテキストボックス内のテキストをコピーして使ってください。</p>
+            <p class="text-center text-sm text-gray-600 mt-2">テキストをコピーして使ってください。</p>
         </div>
 
         <footer class="text-center mt-12 text-gray-500 text-sm space-y-2">
@@ -74,189 +86,159 @@
     </div>
 
     <script>
-        // --- HTML要素の取得 ---
         const songPaletteElement = document.getElementById('song-palette');
-        const itemListElement = document.getElementById('item-list');
-        const loadSongsButton = document.getElementById('load-songs-button');
+        const rankingBoardElement = document.getElementById('ranking-board');
         const clearButton = document.getElementById('clear-button');
         const exportButton = document.getElementById('export-button');
         const exportContainer = document.getElementById('export-container');
         const exportTextarea = document.getElementById('export-textarea');
         
-        const localStorageKey = 'myBestShishamoSorterList_v3'; // バージョンアップ
+        const TOTAL_SONGS = shishamoSongs.length;
 
-        // --- 関数定義 ---
-        const updateRanking = () => {
-            const items = itemListElement.querySelectorAll('.sortable-item');
-            items.forEach((item, index) => {
-                const rankElement = item.querySelector('.rank');
-                if (rankElement) rankElement.textContent = `${index + 1}`;
-            });
+        // ★追加: ランキングの枠(ドロップゾーン)を生成する関数
+        const createRankingSlots = () => {
+            for (let i = 1; i <= TOTAL_SONGS; i++) {
+                const slotEl = document.createElement('div');
+                slotEl.className = 'drop-zone flex items-center p-2 rounded-lg transition-colors';
+                slotEl.setAttribute('data-rank', i);
+                slotEl.innerHTML = `<div class="rank text-2xl font-bold text-pink-400 w-12 text-center flex-shrink-0">${i}</div>
+                                    <div class="placeholder-text flex-grow text-center">ここに曲をドラッグ＆ドロップ</div>`;
+                rankingBoardElement.appendChild(slotEl);
+            }
         };
 
-        const saveList = () => {
-            const items = [];
-            itemListElement.querySelectorAll('.sortable-item').forEach(itemEl => {
-                items.push({
-                    id: itemEl.getAttribute('data-id'),
-                    title: itemEl.querySelector('h3').textContent,
-                    album: itemEl.querySelector('p').textContent,
-                    artwork: itemEl.querySelector('img').getAttribute('src')
-                });
-            });
-            localStorage.setItem(localStorageKey, JSON.stringify(items));
-        };
-        
-        const createItemElement = (item) => {
-            const itemEl = document.createElement('div');
-            // ★変更: アイテム全体をドラッグできるように cursor-grab を設定
-            itemEl.className = 'sortable-item bg-white p-4 rounded-xl shadow-md flex items-center space-x-4 cursor-grab active:cursor-grabbing transition-all duration-300 ease-in-out';
-            itemEl.setAttribute('data-id', item.id);
-            // ★変更: ドラッグハンドルを削除
-            itemEl.innerHTML = `
-                <div class="rank text-2xl font-bold text-pink-400 w-8 text-center flex-shrink-0"></div>
-                <img src="${item.artwork}" alt="${item.title}" class="w-16 h-16 rounded-lg object-cover shadow-sm bg-gray-200">
-                <div class="flex-grow">
-                    <h3 class="text-lg font-bold text-gray-800">${item.title}</h3>
-                    <p class="text-sm text-gray-500">${item.album}</p>
-                </div>
-                <button class="delete-btn text-gray-400 hover:text-red-500 transition-colors p-1" title="削除">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-                </button>
-            `;
-            itemEl.querySelector('.delete-btn').addEventListener('click', () => {
-                const songTitle = itemEl.querySelector('h3').textContent;
-                const paletteItem = songPaletteElement.querySelector(`[data-title="${songTitle}"]`);
-                if(paletteItem) paletteItem.classList.remove('opacity-40', 'pointer-events-none');
-
-                itemEl.classList.add('animate-pulse', 'opacity-0');
-                setTimeout(() => {
-                    itemEl.remove();
-                    updateRanking();
-                    saveList();
-                }, 300);
-            });
-            return itemEl;
-        };
-
-        // ★追加: 曲パレットのアイテムを生成する関数
         const createPaletteItemElement = (song) => {
             const itemEl = document.createElement('div');
-            itemEl.className = 'bg-white p-2 rounded-lg shadow flex items-center space-x-3 transition-opacity';
+            itemEl.className = 'palette-item bg-white p-2 rounded-lg shadow flex items-center space-x-3 cursor-grab active:cursor-grabbing';
             itemEl.setAttribute('data-title', song.title);
+            // itemのdatasetに曲情報を埋め込む
+            Object.keys(song).forEach(key => {
+                itemEl.dataset[key] = song[key];
+            });
 
             itemEl.innerHTML = `
-                <img src="${song.artwork}" alt="${song.title}" class="w-10 h-10 rounded-md object-cover bg-gray-200">
-                <div class="flex-grow">
+                <img src="${song.artwork}" alt="${song.title}" class="w-12 h-12 rounded-md object-cover bg-gray-200 pointer-events-none">
+                <div class="flex-grow pointer-events-none">
                     <h4 class="text-sm font-bold text-gray-800">${song.title}</h4>
                     <p class="text-xs text-gray-500">${song.album}</p>
-                </div>
-                <button class="add-btn bg-pink-500 text-white rounded-full w-8 h-8 flex items-center justify-center hover:bg-pink-600 transition-colors flex-shrink-0" title="ランキングに追加">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-                </button>
-            `;
+                </div>`;
+            return itemEl;
+        };
 
-            itemEl.querySelector('.add-btn').addEventListener('click', () => {
-                const newItemData = {
-                    id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
-                    ...song
-                };
-                const newRankItem = createItemElement(newItemData);
-                itemListElement.appendChild(newRankItem);
-                updateRanking();
-                saveList();
-                itemEl.classList.add('opacity-40', 'pointer-events-none');
+        const createRankedItemElement = (song) => {
+             const itemEl = document.createElement('div');
+             itemEl.className = 'ranked-item bg-white p-2 rounded-lg shadow-md flex items-center space-x-2 w-full';
+             itemEl.setAttribute('data-title', song.title);
+             itemEl.innerHTML = `
+                <img src="${song.artwork}" alt="${song.title}" class="w-16 h-16 rounded-lg object-cover shadow-sm bg-gray-200">
+                <div class="flex-grow">
+                    <h3 class="text-lg font-bold text-gray-800">${song.title}</h3>
+                    <p class="text-sm text-gray-500">${song.album}</p>
+                </div>
+                <button class="delete-btn text-gray-300 hover:text-red-500 transition-colors p-1" title="削除">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                </button>`;
+            
+            itemEl.querySelector('.delete-btn').addEventListener('click', (e) => {
+                const parentSlot = e.currentTarget.closest('.drop-zone');
+                parentSlot.innerHTML = `<div class="rank text-2xl font-bold text-pink-400 w-12 text-center flex-shrink-0">${parentSlot.dataset.rank}</div>
+                                        <div class="placeholder-text flex-grow text-center">ここに曲をドラッグ＆ドロップ</div>`;
+                parentSlot.classList.remove('filled');
             });
 
             return itemEl;
-        };
-        
-        const loadListFromStorage = () => {
-            const savedItems = JSON.parse(localStorage.getItem(localStorageKey)) || [];
-            if (savedItems.length > 0) {
-                savedItems.forEach(item => {
-                    itemListElement.appendChild(createItemElement(item));
-                });
-                updateRanking();
-            }
-            return savedItems.map(item => item.title);
-        };
+        }
 
-        const loadAllShishamoSongs = () => {
-            if (songPaletteElement.children.length > 0) {
-                alert('曲リストは既に読み込まれています。');
-                return;
-            }
-            const rankedTitles = itemListElement.querySelectorAll('h3');
-            const rankedTitleSet = new Set(Array.from(rankedTitles).map(el => el.textContent));
-
+        const loadPalette = () => {
             shishamoSongs.forEach(song => {
-                const paletteItem = createPaletteItemElement(song);
-                if (rankedTitleSet.has(song.title)) {
-                    paletteItem.classList.add('opacity-40', 'pointer-events-none');
-                }
-                songPaletteElement.appendChild(paletteItem);
+                songPaletteElement.appendChild(createPaletteItemElement(song));
             });
         };
-        
+
         const clearList = () => {
             if (confirm('本当にランキングをすべてリセットしますか？')) {
-                itemListElement.innerHTML = '';
-                localStorage.removeItem(localStorageKey);
-                songPaletteElement.querySelectorAll('.opacity-40').forEach(el => {
-                    el.classList.remove('opacity-40', 'pointer-events-none');
-                });
+                rankingBoardElement.innerHTML = '';
+                createRankingSlots();
             }
         };
 
         const exportListAsText = () => {
-            const items = itemListElement.querySelectorAll('.sortable-item');
-            if (items.length === 0) {
-                alert('ランキングが空です。先に曲を追加して並べ替えてください。');
+            const rankedItems = rankingBoardElement.querySelectorAll('.ranked-item');
+            if (rankedItems.length === 0) {
+                alert('ランキングが空です。');
                 return;
             }
             let outputString = 'わたしのSHISHAMO楽曲ランキング\n========================\n';
-            items.forEach(item => {
-                const rank = item.querySelector('.rank').textContent;
-                const title = item.querySelector('h3').textContent;
-                const album = item.querySelector('p').textContent;
-                outputString += `${rank}. ${title} (${album})\n`;
+            rankingBoardElement.querySelectorAll('.drop-zone').forEach(slot => {
+                const rankedItem = slot.querySelector('.ranked-item');
+                if(rankedItem){
+                    const rank = slot.dataset.rank;
+                    const title = rankedItem.dataset.title;
+                    outputString += `${rank}. ${title}\n`;
+                }
             });
             outputString += '========================\n#SHISHAMO楽曲ソーター で作成\n';
             exportTextarea.value = outputString;
             exportContainer.classList.remove('hidden');
-            exportTextarea.select();
-            exportTextarea.setSelectionRange(0, 99999);
             exportContainer.scrollIntoView({ behavior: 'smooth' });
-            alert('ランキング結果を出力しました。');
         };
-
+        
         // --- イベントリスナーの設定 ---
-        loadSongsButton.addEventListener('click', loadAllShishamoSongs);
         clearButton.addEventListener('click', clearList);
         exportButton.addEventListener('click', exportListAsText);
         document.addEventListener('DOMContentLoaded', () => {
-            const rankedTitles = loadListFromStorage();
-            // ページ読み込み時に曲リストも読み込み、追加済みの曲を非活性化する
-            if (shishamoSongs) {
-                const rankedTitleSet = new Set(rankedTitles);
-                 shishamoSongs.forEach(song => {
-                    const paletteItem = createPaletteItemElement(song);
-                    if (rankedTitleSet.has(song.title)) {
-                        paletteItem.classList.add('opacity-40', 'pointer-events-none');
-                    }
-                    songPaletteElement.appendChild(paletteItem);
-                });
-            }
+            loadPalette();
+            createRankingSlots();
         });
 
         // --- SortableJSの初期化 ---
-        new Sortable(itemListElement, {
-            animation: 150,
-            ghostClass: 'ghost-class',
-            chosenClass: 'sortable-chosen',
-            // ★変更: handleオプションを削除し、アイテム全体をドラッグ可能に
+        // 左: 曲パレット
+        new Sortable(songPaletteElement, {
+            group: {
+                name: 'shishamo-songs',
+                pull: 'clone', // ドラッグ時に要素をコピーする
+                put: false // このリストにはドロップさせない
+            },
+            sort: false, // パレット内の並び替えは無効
+            animation: 150
         });
+
+        // 右: ランキングボード (各スロットをグループ化)
+        new Sortable(rankingBoardElement, {
+            group: 'shishamo-songs',
+            animation: 150,
+            onAdd: function (evt) {
+                const originalItem = evt.item; // パレットからコピーされた要素
+                const targetSlot = evt.to; // ドロップされた先の要素(この場合はranking-board)
+                
+                // 本来のドロップ先であるべき .drop-zone を探す
+                let dropZone = originalItem.closest('.drop-zone');
+                if (!dropZone) { // ranking-board直下にドロップされた場合、最後の要素として扱う
+                    dropZone = evt.originalEvent.target.closest('.drop-zone') || rankingBoardElement.lastChild;
+                }
+
+                // もしドロップ先に既に曲があれば、中身を入れ替える
+                const existingItem = dropZone.querySelector('.ranked-item');
+                if (existingItem) {
+                    // ここでは単純に上書きする。元の場所に戻すなどの処理も可能
+                    existingItem.remove();
+                }
+
+                const songData = originalItem.dataset;
+                const newRankedItem = createRankedItemElement(songData);
+
+                // プレースホルダーを削除し、新しいアイテムを追加
+                const placeholder = dropZone.querySelector('.placeholder-text');
+                if(placeholder) placeholder.remove();
+                
+                dropZone.appendChild(newRankedItem);
+                dropZone.classList.add('filled');
+
+                // パレットから来た元のクローン要素は削除
+                originalItem.remove();
+            }
+        });
+
     </script>
 </body>
 </html>
