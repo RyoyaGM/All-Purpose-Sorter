@@ -105,6 +105,7 @@
                     const songData = itemEl.dataset;
                     const newRankedItem = createRankedItemElement(songData);
                     
+                    // +ボタンによる追加は、もともとランク表示が残っているので、placeholderだけ消してアペンドすればOK
                     firstEmptySlot.querySelector('.placeholder-text')?.remove();
                     firstEmptySlot.appendChild(newRankedItem);
                     firstEmptySlot.classList.add('filled');
@@ -140,7 +141,7 @@
                 const paletteItem = songPaletteElement.querySelector(`[data-title="${songTitle}"]`);
                 if (paletteItem) paletteItem.classList.remove('disabled');
 
-                resetSlot(parentSlot); // ヘルパー関数に変更
+                resetSlot(parentSlot); 
             });
             return itemEl;
         }
@@ -202,15 +203,20 @@
                         const targetRank = parseInt(targetSlot.dataset.rank);
                         const isFromPalette = evt.from === songPaletteElement;
                         
-                        // --- 1. ターゲットスロットの既存曲データを取得し、スロットを完全にクリーンアップ ---
+                        // --- 1. ターゲットスロットの既存曲データを取得し、スロット内の不要な要素を削除 ---
                         
                         // Sortableが挿入した要素(droppedItem)以外で、既にスロット内にあった ranked-item のデータを取得
                         const existingItem = Array.from(targetSlot.querySelectorAll('.ranked-item')).find(item => item !== droppedItem && !item.classList.contains('sortable-ghost'));
                         
                         let displacedItemData = existingItem ? existingItem.dataset : null;
                         
-                        // ターゲットスロット内の全ての要素を削除（これにより重複が解消される）
+                        // ranked-item と placeholder-text を削除（ランク表示 div は残す、または再挿入するため一度削除）
+                        // 既に存在していた ranked-item と placeholder-text を削除
+                        targetSlot.querySelectorAll('.ranked-item, .placeholder-text').forEach(child => child.remove()); 
+
+                        // ランク表示要素も削除し、innerHTMLで再構築する方がロジックがシンプルになる
                         Array.from(targetSlot.children).forEach(child => child.remove()); 
+
 
                         // --- 2. 新しい曲を挿入 ---
                         const newSongData = {
@@ -219,9 +225,13 @@
                             artwork: droppedItem.dataset.artwork
                         };
                         
+                        // 【修正箇所】まずランク番号の要素をスロット内に再作成
+                        targetSlot.innerHTML = `<div class="rank text-2xl font-bold text-pink-400 w-12 text-center flex-shrink-0">${targetRank}</div>`;
+
+                        // 次に ranked-item をその後にアペンド
                         targetSlot.appendChild(createRankedItemElement(newSongData));
                         targetSlot.classList.add('filled');
-                        
+
                         // --- 3. 移動元スロットの処理 ---
                         if (isFromPalette) {
                             // パレットからの追加の場合、パレットの曲を無効化
@@ -241,13 +251,18 @@
 
                             for (let i = targetRank; i < slots.length; i++) {
                                 const nextSlot = slots[i]; 
+                                const nextRank = nextSlot.dataset.rank; 
                                 
                                 // nextSlotに元々入っていた曲のデータを取得
                                 const nextItem = nextSlot.querySelector('.ranked-item');
                                 let itemToBeDisplaced = nextItem ? nextItem.dataset : null; 
                                 
                                 // itemToPush を nextSlot に配置
-                                Array.from(nextSlot.children).forEach(child => child.remove()); // nextSlot内を完全にクリア
+                                // 【修正箇所】nextSlot内を完全にクリアし、ランク番号を再挿入
+                                Array.from(nextSlot.children).forEach(child => child.remove()); 
+                                nextSlot.innerHTML = `<div class="rank text-2xl font-bold text-pink-400 w-12 text-center flex-shrink-0">${nextRank}</div>`;
+
+                                // ranked-item をアペンド
                                 nextSlot.appendChild(createRankedItemElement(itemToPush));
                                 nextSlot.classList.add('filled');
                                 
@@ -266,10 +281,13 @@
                                 resetSlot(slots[lastSlotIndex]);
                             }
                         }
+                        
+                        // Sortableが挿入した一時的な要素（クローン）を削除（複製防止のため）
+                        droppedItem.remove(); 
                     },
                     // onRemove: ランキング内の曲が移動元スロットから削除されたときに発火
                     onRemove: function(evt) {
-                        // onAdd側でリセット処理が成功していれば、ここでは特に何もしない
+                        // ランキング内の移動の場合、onAdd側でリセット処理を担うため、ここでは何もしない
                     }
                 });
             });
